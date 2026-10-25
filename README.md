@@ -3,8 +3,8 @@
 Turn photos and scans of paper ECGs into digital 12-lead signals, and tell the user how far
 each part of the result can be trusted.
 
-> **Status: Phase 0, project skeleton.** The repository structure, command-line placeholders
-> and quality gates are in place. No digitisation logic exists yet.
+> **Status: Phase 1, data layer and synthetic data.** PTB-XL loading, patient-level splits and
+> synthetic training images with lead masks work. The digitisation itself is not built yet.
 >
 > **Not a medical device.** PaperTrace is a research and teaching project. Its output must not
 > be used for clinical decisions.
@@ -24,7 +24,7 @@ measurements (RR, PR, QRS, QT/QTc) compared against the original signal.
 src/papertrace/
   core/     digitisation pipeline as a pure library (no web or training dependencies)
   data/     PTB-XL access, patient-level splits, leakage checks
-  synth/    synthetic ECG images and masks for training
+  synth/    synthetic ECG images, lead masks and phone-photo artefacts
   train/    model training and ONNX export
   eval/     metrics, robustness matrix, clinical interval error
   export/   WFDB, CSV/JSON and FHIR writers
@@ -52,7 +52,26 @@ cd frontend
 npm ci
 ```
 
-All subcommands are placeholders for now and exit with code 2 and "not implemented yet".
+`manifest` and `synth` work (see below); the other subcommands are still placeholders that exit
+with code 2 and "not implemented yet".
+
+### Data and synthetic images
+
+The PTB-XL dataset (CC BY 4.0) is not part of the repository. Download it from PhysioNet into
+`data/ptb-xl/` (the `data/` folder is git-ignored), then:
+
+```
+uv run papertrace manifest          # patient-level split manifest -> output/split_manifest.parquet
+uv run papertrace synth -n 100      # synthetic images, lead masks, manifest -> output/synth/
+uv run python scripts/preview_masks.py output/synth -n 5   # overlays for a visual check
+```
+
+Synthetic images are rendered with [ECG-Image-Kit](https://github.com/alphanumericslab/ecg-image-kit),
+which needs its own Python 3.10 environment (it pins old TensorFlow and NumPy versions). By default
+`synth` looks for the checkout in `data/external/ecg-image-kit` and its interpreter in
+`data/external/venv-ecgkit`; both can be changed with `--kit-dir` and `--kit-python`.
+Every synthetic image inherits the patient and fold of its source record, so test records never
+leak into training.
 
 Settings come from `config/default.toml`; any value can be overridden with an environment
 variable, for example `PAPERTRACE_API__PORT=9000`. Secrets are read from the environment only.

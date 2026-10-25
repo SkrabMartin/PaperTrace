@@ -1,5 +1,6 @@
 """Command-line interface: thin wrappers over the library, one subcommand per pipeline step."""
 
+import os
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -7,8 +8,11 @@ import typer
 
 from papertrace import __version__
 from papertrace.config import load_settings
-from papertrace.data.manifest import build_manifest, write_manifest
+from papertrace.data.manifest import build_manifest, read_manifest, write_manifest
 from papertrace.data.ptbxl import load_index
+from papertrace.synth.generate import generate_dataset, select_records
+from papertrace.synth.kit import KitSetup
+from papertrace.synth.manifest import write_synth_manifest
 
 NOT_IMPLEMENTED_EXIT_CODE = 2
 
@@ -76,9 +80,76 @@ def manifest(
 
 
 @app.command()
-def synth() -> None:
-    """Generate synthetic ECG images and masks for training."""
-    _not_implemented("synth")
+def synth(
+    split: Annotated[
+        str, typer.Option(help="Split to draw records from: train, val or test.")
+    ] = "train",
+    count: Annotated[int, typer.Option("-n", "--count", help="Number of PTB-XL records.")] = 100,
+    variants: Annotated[int, typer.Option(help="Rendered images per record.")] = 1,
+    batch_size: Annotated[int, typer.Option(help="Records per generator run.")] = 10,
+    seed: Annotated[int, typer.Option(help="Master seed.")] = 0,
+    artefacts: Annotated[
+        bool | None,
+        typer.Option(
+            "--artefacts/--no-artefacts",
+            help="Extra phone-photo artefacts. Default: on for train, off otherwise.",
+        ),
+    ] = None,
+    manifest_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--manifest", help="Split manifest. Default: <output_dir>/split_manifest.parquet."
+        ),
+    ] = None,
+    root: Annotated[
+        Path | None, typer.Option(help="PTB-XL directory. Default: <data_dir>/ptb-xl.")
+    ] = None,
+    kit_dir: Annotated[
+        Path | None,
+        typer.Option(help="ECG-Image-Kit checkout. Default: <data_dir>/external/ecg-image-kit."),
+    ] = None,
+    kit_python: Annotated[
+        Path | None,
+        typer.Option(
+            help="Python of the generator environment. Default: <data_dir>/external/venv-ecgkit."
+        ),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option("-o", "--output", help="Output directory. Default: <output_dir>/synth."),
+    ] = None,
+) -> None:
+    """Generate synthetic ECG images, lead masks and a manifest for training."""
+    settings = load_settings()
+    data_dir, output_dir = settings.paths.data_dir, settings.paths.output_dir
+    manifest_path = manifest_path or output_dir / "split_manifest.parquet"
+    root = root or data_dir / "ptb-xl"
+    kit_dir = kit_dir or data_dir / "external" / "ecg-image-kit"
+    venv = data_dir / "external" / "venv-ecgkit"
+    kit_python = kit_python or (
+        venv / "Scripts" / "python.exe" if os.name == "nt" else venv / "bin" / "python"
+    )
+    output = output or output_dir / "synth"
+    if split not in ("train", "val", "test"):
+        typer.echo("papertrace synth: --split must be train, val or test", err=True)
+        raise typer.Exit(code=1)
+    for required in (manifest_path, kit_dir, kit_python):
+        if not required.exists():
+            typer.echo(f"papertrace synth: not found: {required}", err=True)
+            raise typer.Exit(code=1)
+    records = select_records(read_manifest(manifest_path), split, count, seed)
+    result = generate_dataset(
+        records,
+        root,
+        output,
+        KitSetup(kit_dir=kit_dir, python=kit_python),
+        variants=variants,
+        batch_size=batch_size,
+        seed=seed,
+        artefacts=(split == "train") if artefacts is None else artefacts,
+    )
+    write_synth_manifest(result, output / "synth_manifest.parquet")
+    typer.echo(f"wrote {len(result)} images to {output}")
 
 
 @app.command()

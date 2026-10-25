@@ -5,7 +5,8 @@ from papertrace.cli import app
 
 runner = CliRunner()
 COMMANDS = ["digitize", "manifest", "synth", "train", "evaluate", "serve"]
-PLACEHOLDERS = [command for command in COMMANDS if command != "manifest"]
+IMPLEMENTED = {"manifest", "synth"}
+PLACEHOLDERS = [command for command in COMMANDS if command not in IMPLEMENTED]
 
 
 def test_help_lists_all_commands() -> None:

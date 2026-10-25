@@ -14,6 +14,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "albumentations>=2.0.8",
+    "opencv-python-headless>=5.0.0.93",
     "pandas>=3.1.0",
     "pyarrow>=26.0.0",
     "pydantic>=2.14.1",
@@ -57,7 +59,7 @@ strict = true
 files = ["src", "tests", "scripts"]
 
 [[tool.mypy.overrides]]
-module = ["wfdb", "wfdb.*"]
+module = ["wfdb", "wfdb.*", "albumentations", "albumentations.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
