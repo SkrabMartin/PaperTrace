@@ -94,8 +94,10 @@ def run_batch(setup: KitSetup, spec: BatchSpec, input_dir: Path, output_dir: Pat
         RuntimeError: If the generator exits with an error (its output is included).
     """
     output_dir.mkdir(parents=True, exist_ok=True)
+    # absolute(), not resolve(): a venv's python is a symlink to the base interpreter on Linux and
+    # resolving it would drop the venv's packages
     command = [
-        str(setup.python.resolve()),
+        str(setup.python.absolute()),
         BATCH_SCRIPT,
         "-i", str(input_dir.resolve()),
         "-o", str(output_dir.resolve()),
