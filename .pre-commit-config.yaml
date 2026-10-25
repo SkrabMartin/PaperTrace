@@ -24,3 +24,11 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+  - repo: local
+    hooks:
+      - id: only-readme-markdown
+        name: only README.md may be committed
+        entry: only README.md may be committed as markdown
+        language: fail
+        files: '(?i)\.md$'
+        exclude: '^README\.md$'
