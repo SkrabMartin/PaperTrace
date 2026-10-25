@@ -6,6 +6,9 @@ from typing import Annotated, NoReturn
 import typer
 
 from papertrace import __version__
+from papertrace.config import load_settings
+from papertrace.data.manifest import build_manifest, write_manifest
+from papertrace.data.ptbxl import load_index
 
 NOT_IMPLEMENTED_EXIT_CODE = 2
 
@@ -47,9 +50,29 @@ def digitize(
 
 
 @app.command()
-def manifest() -> None:
+def manifest(
+    root: Annotated[
+        Path | None, typer.Option(help="PTB-XL directory. Default: <data_dir>/ptb-xl.")
+    ] = None,
+    output: Annotated[
+        Path | None, typer.Option("-o", "--output", help="Parquet file to write.")
+    ] = None,
+) -> None:
     """Build the patient-level split manifest from PTB-XL metadata."""
-    _not_implemented("manifest")
+    settings = load_settings()
+    root = root or settings.paths.data_dir / "ptb-xl"
+    output = output or settings.paths.output_dir / "split_manifest.parquet"
+    try:
+        built = build_manifest(load_index(root))
+    except FileNotFoundError as error:
+        typer.echo(f"papertrace manifest: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    write_manifest(built, output)
+    counts = built.groupby("split").agg(
+        records=("ecg_id", "size"), patients=("patient_id", "nunique")
+    )
+    typer.echo(counts.to_string())
+    typer.echo(f"wrote {len(built)} records to {output}")
 
 
 @app.command()

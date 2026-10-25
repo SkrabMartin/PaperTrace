@@ -5,6 +5,7 @@ from papertrace.cli import app
 
 runner = CliRunner()
 COMMANDS = ["digitize", "manifest", "synth", "train", "evaluate", "serve"]
+PLACEHOLDERS = [command for command in COMMANDS if command != "manifest"]
 
 
 def test_help_lists_all_commands() -> None:
@@ -14,7 +15,7 @@ def test_help_lists_all_commands() -> None:
         assert command in result.output
 
 
-@pytest.mark.parametrize("command", COMMANDS)
+@pytest.mark.parametrize("command", PLACEHOLDERS)
 def test_placeholder_commands_exit_with_code_2(command: str) -> None:
     result = runner.invoke(app, [command])
     assert result.exit_code == 2
