@@ -1,5 +1,6 @@
 """Command-line interface: thin wrappers over the library, one subcommand per pipeline step."""
 
+import json
 import os
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -10,6 +11,7 @@ from papertrace import __version__
 from papertrace.config import load_settings
 from papertrace.data.manifest import build_manifest, read_manifest, write_manifest
 from papertrace.data.ptbxl import load_index
+from papertrace.eval.report import evaluate_dataset
 from papertrace.synth.generate import generate_dataset, select_records
 from papertrace.synth.kit import KitSetup
 from papertrace.synth.manifest import write_synth_manifest
@@ -159,9 +161,50 @@ def train() -> None:
 
 
 @app.command()
-def evaluate() -> None:
-    """Evaluate digitisation quality against ground-truth signals."""
-    _not_implemented("evaluate")
+def evaluate(
+    synth_dir: Annotated[
+        Path | None,
+        typer.Option("--synth", help="Output of `synth`. Default: <output_dir>/synth_val."),
+    ] = None,
+    root: Annotated[
+        Path | None, typer.Option(help="PTB-XL directory. Default: <data_dir>/ptb-xl.")
+    ] = None,
+    manifest_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--manifest", help="Split manifest. Default: <output_dir>/split_manifest.parquet."
+        ),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "-o", "--output", help="JSON report. Default: <output_dir>/baseline_report.json."
+        ),
+    ] = None,
+    limit: Annotated[int | None, typer.Option(help="Evaluate only the first N images.")] = None,
+    workers: Annotated[
+        int | None, typer.Option(help="Parallel processes (default: CPUs, max 8).")
+    ] = None,
+) -> None:
+    """Score the classical baseline on synthetic images against the PTB-XL signals."""
+    settings = load_settings()
+    data_dir, output_dir = settings.paths.data_dir, settings.paths.output_dir
+    synth_dir = synth_dir or output_dir / "synth_val"
+    root = root or data_dir / "ptb-xl"
+    manifest_path = manifest_path or output_dir / "split_manifest.parquet"
+    output = output or output_dir / "baseline_report.json"
+    for required in (synth_dir / "synth_manifest.parquet", manifest_path):
+        if not required.exists():
+            typer.echo(f"papertrace evaluate: not found: {required}", err=True)
+            raise typer.Exit(code=1)
+    report, _ = evaluate_dataset(synth_dir, root, read_manifest(manifest_path), limit, workers)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    overall = report["overall"]["snr_db"]
+    typer.echo(
+        f"{report['n_images']} images, SNR median {overall['median']:.2f} dB "
+        f"(IQR {overall['q1']:.2f} to {overall['q3']:.2f}), report: {output}"
+    )
 
 
 @app.command()

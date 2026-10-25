@@ -3,8 +3,9 @@
 Turn photos and scans of paper ECGs into digital 12-lead signals, and tell the user how far
 each part of the result can be trusted.
 
-> **Status: Phase 1, data layer and synthetic data.** PTB-XL loading, patient-level splits and
-> synthetic training images with lead masks work. The digitisation itself is not built yet.
+> **Status: Phase 2, classical baseline.** PTB-XL loading, patient-level splits, synthetic training
+> images with lead masks, and a naive non-learned digitiser with the challenge's scoring work. The
+> learned model, confidence estimates and the web application are not built yet.
 >
 > **Not a medical device.** PaperTrace is a research and teaching project. Its output must not
 > be used for clinical decisions.
@@ -22,11 +23,11 @@ measurements (RR, PR, QRS, QT/QTc) compared against the original signal.
 
 ```
 src/papertrace/
-  core/     digitisation pipeline as a pure library (no web or training dependencies)
+  core/     digitisation as a pure library (no web or training dependencies): grid, calibration, baseline
   data/     PTB-XL access, patient-level splits, leakage checks
   synth/    synthetic ECG images, lead masks and phone-photo artefacts
   train/    model training and ONNX export
-  eval/     metrics, robustness matrix, clinical interval error
+  eval/     scoring (challenge SNR), baseline evaluation report
   export/   WFDB, CSV/JSON and FHIR writers
   api/      REST API and background worker
   config.py settings: config/default.toml + PAPERTRACE_* environment variables
@@ -52,8 +53,8 @@ cd frontend
 npm ci
 ```
 
-`manifest` and `synth` work (see below); the other subcommands are still placeholders that exit
-with code 2 and "not implemented yet".
+`manifest`, `synth` and `evaluate` work (see below); the other subcommands are still placeholders
+that exit with code 2 and "not implemented yet".
 
 ### Data and synthetic images
 
@@ -65,6 +66,18 @@ uv run papertrace manifest          # patient-level split manifest -> output/spl
 uv run papertrace synth -n 100      # synthetic images, lead masks, manifest -> output/synth/
 uv run python scripts/preview_masks.py output/synth -n 5   # overlays for a visual check
 ```
+
+`evaluate` runs the classical baseline (grid scale, rotation correction, centroid per column) on a
+synthetic set and scores it against the original PTB-XL signals with the PhysioNet Challenge 2024
+signal-to-noise ratio, per lead:
+
+```
+uv run papertrace synth --split val -n 100 -o output/synth_val
+uv run papertrace evaluate          # writes output/baseline_report.json
+```
+
+The baseline is deliberately naive: it is the reference that the learned model has to beat, and it
+is weak where the paper grid is as dark as the trace.
 
 Synthetic images are rendered with [ECG-Image-Kit](https://github.com/alphanumericslab/ecg-image-kit),
 which needs its own Python 3.10 environment (it pins old TensorFlow and NumPy versions). By default

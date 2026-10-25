@@ -5,7 +5,7 @@ from papertrace.cli import app
 
 runner = CliRunner()
 COMMANDS = ["digitize", "manifest", "synth", "train", "evaluate", "serve"]
-IMPLEMENTED = {"manifest", "synth"}
+IMPLEMENTED = {"manifest", "synth", "evaluate"}
 PLACEHOLDERS = [command for command in COMMANDS if command not in IMPLEMENTED]
 
 
