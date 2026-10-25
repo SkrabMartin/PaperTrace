@@ -1,0 +1,14 @@
+# Default settings. Override any value with PAPERTRACE_<SECTION>__<KEY>, e.g. PAPERTRACE_API__PORT=9000.
+# Secrets (database_url, storage_secret_key) are environment-only and must not appear here.
+
+[paths]
+data_dir = "data"
+models_dir = "models"
+output_dir = "output"
+
+[logging]
+level = "INFO"
+
+[api]
+host = "127.0.0.1"
+port = 8000

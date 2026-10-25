@@ -1,0 +1,26 @@
+# All hooks run project-local tools through uv, so no hook is fetched from a third party.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --check
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy --strict
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: markdown-guard
+        name: only README.md may be tracked as markdown
+        entry: uv run python scripts/check_markdown.py
+        language: system
+        pass_filenames: false
+        always_run: true

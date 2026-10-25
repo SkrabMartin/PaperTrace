@@ -1,0 +1,40 @@
+# Data, models and experiment output (large, licensed or regenerable)
+/data/
+/models/
+/output/
+/mlruns/
+/outputs/
+*.onnx
+*.pt
+*.pth
+*.parquet
+*.dat
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
